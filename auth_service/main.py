@@ -1,73 +1,83 @@
-
-import os
-from itertools import count
-from datetime import datetime, timezone
-from contextlib import asynccontextmanager
-
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 
-from model import FormCreate
+from model import FormRequest, FormCreate
 from pdf_service import generate_pdf
 
-
-pdf_ids = count(1)
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    os.makedirs("generated_forms", exist_ok=True)
-    yield
+import os
 
 
 app = FastAPI(
-    title="ServiceHub Form Service",
-    lifespan=lifespan
+    title="ServiceHub Form Service"
 )
 
 
-# Create form and generate PDF
-@app.post("/send-form", status_code=201)
+forms_data = []
+
+
+@app.post("/send-form", response_model=FormRequest, status_code=201)
 def create_form(data: FormCreate):
-    form_id = next(pdf_ids)
 
-    try:
-        pdf_path = generate_pdf(
-            form_id,
-            data.name,
-            data.item,
-            data.options,
-            data.dependent_name,
-            data.dependent_age
-        )
+    form_id = len(forms_data) + 1
 
-        return {
-            "message": "Form submitted and PDF generated successfully",
-            "form_id": form_id,
-            "name": data.name,
-            "email": str(data.email),
-            "phone": data.phone,
-            "item": data.item,
-            "options": data.options,
-            "dependent_name": data.dependent_name,
-            "dependent_age": data.dependent_age,
-            "pdf_path": str(pdf_path)
-        }
-
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"PDF generation failed: {str(e)}"
-        )
-
-
-# Download PDF by ID
-@app.get("/forms/{form_id}/pdf")
-def download_pdf(form_id: int):
-    pdf_path = os.path.join(
-        "generated_forms",
-        f"form_{form_id}.pdf"
+    # Generate PDF
+    pdf_path = generate_pdf(
+        form_id=form_id,
+        name=data.name,
+        item=data.item,
+        options=data.options,
+        dependent_name=data.dependent_name,
+        dependent_age=data.dependent_age
     )
+
+
+    response = {
+
+        "id": form_id,
+
+        "name": data.name,
+
+        "email": data.email,
+
+        "phone": data.phone,
+
+        "item": data.item,
+
+        "options": data.options,
+
+        "dependent_name": data.dependent_name,
+
+        "dependent_age": data.dependent_age,
+
+        "pdf_path": pdf_path
+    }
+
+
+    forms_data.append(response)
+
+    return response
+
+
+
+# Only PDF Download API
+@app.get("/download-pdf/{form_id}")
+def download_pdf(form_id: int):
+
+    form = next(
+        (item for item in forms_data if item["id"] == form_id),
+        None
+    )
+
+
+    if not form:
+        raise HTTPException(
+            status_code=404,
+            detail="Form not found"
+        )
+
+
+    pdf_path = form["pdf_path"]
+
 
     if not os.path.exists(pdf_path):
         raise HTTPException(
@@ -75,8 +85,9 @@ def download_pdf(form_id: int):
             detail="PDF file not found"
         )
 
+
     return FileResponse(
-        pdf_path,
+        path=pdf_path,
         media_type="application/pdf",
         filename=f"form_{form_id}.pdf"
     )

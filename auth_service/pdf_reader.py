@@ -27,7 +27,7 @@ def read_generated_pdf(pdf_path: str):
             if "Choice 1" in text:
                 print("Choice 1 found")
 
-            if "Ujjwal" in text:
+            if "Ayush" in text:
                 print("Name found")
 
     return result

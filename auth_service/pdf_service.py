@@ -1,14 +1,30 @@
 import os
-
 from reportlab.lib.colors import Color, black, white
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 
-FOLDER = "generated_forms"
 
-HEADING = Color(0.31, 0.42, 0.66)   # blue used for headings in the sample PDF
-ITEMS = ["Choice 1", "Choice 2", "Choice 3", "Choice 4"]
-OPTIONS = ["Option 1", "Option 2", "Option 3"]
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+FOLDER = os.path.join(
+    BASE_DIR,
+    "generated_forms"
+)
+
+HEADING = Color(0.31, 0.42, 0.66)
+
+ITEMS = [
+    "Choice 1",
+    "Choice 2",
+    "Choice 3",
+    "Choice 4"
+]
+
+OPTIONS = [
+    "Option 1",
+    "Option 2",
+    "Option 3"
+]
 
 
 def generate_pdf(
@@ -24,7 +40,12 @@ def generate_pdf(
 
     options = options or []
     os.makedirs(FOLDER, exist_ok=True)
-    file_path = os.path.join(FOLDER, f"form_{form_id}.pdf")
+
+    file_path = os.path.join(
+        FOLDER,
+        f"form_{form_id}.pdf"
+    )
+
 
     pdf = canvas.Canvas(file_path, pagesize=letter)
     pdf.setTitle("Sample Fillable PDF")
@@ -46,21 +67,21 @@ def generate_pdf(
     # ---- name
     pdf.setFillColor(HEADING)
     pdf.setFont("Helvetica", 12)
-    pdf.drawString(74, 616, "Please enter your name:")
-    form.textfield(
-    name="Name",
-    value=name or "",
-    tooltip="Name",
-    x=202.5,
-    y=588,
-    width=210,
-    height=22,
-    borderWidth=0,
-    fillColor=white,
-    forceBorder=False,
-    fontSize=11,
-    fieldFlags="readOnly",
-)
+
+    pdf.drawString(
+        74,
+        616,
+        "Please enter your name:"
+    )
+
+    pdf.setFillColor(black)
+    pdf.setFont("Helvetica", 11)
+
+    pdf.drawString(
+        220,
+        616,
+        name or ""
+    )
 
     # ---- dropdown
     pdf.setFillColor(HEADING)
@@ -123,51 +144,65 @@ def generate_pdf(
         y -= 14.6
 
     # ---- dependent table
+
     pdf.setFillColor(HEADING)
     pdf.setFont("Helvetica", 12)
-    pdf.drawString(74, 424, "You can add  fields within tables as well:")
 
+    pdf.drawString(
+        74,
+        424,
+        "You can add fields within tables as well:"
+    )
+
+    # Table border
     left, mid, right = 68, 183, 425
     top, row, bottom = 416.5, 401, 386
+
     pdf.setStrokeColor(black)
     pdf.setLineWidth(0.8)
-    pdf.rect(left, bottom - 0.5, right - left, top - bottom + 0.5)
+
+    pdf.rect(
+        left,
+        bottom - 0.5,
+        right - left,
+        top - bottom + 0.5
+    )
+
     pdf.line(left, row, right, row)
     pdf.line(mid, bottom - 0.5, mid, top)
 
+
+    # Labels
     pdf.setFillColor(black)
     pdf.setFont("Helvetica", 11)
-    pdf.drawString(74, 405, "Name of Dependent")
-    pdf.drawString(74, 390, "Age of Dependent")
 
-    form.textfield(
-    name="Name of Dependent",
-    value=dependent_name or "",
-    tooltip="Name of Dependent",
-    x=183.6,
-    y=401.3,
-    width=232.4,
-    height=14,
-    borderWidth=0,
-    fillColor=white,
-    forceBorder=False,
-    fontSize=9,
-    fieldFlags="readOnly",
-)
-    form.textfield(
-    name="Age of Dependent",
-    value="" if dependent_age is None else str(dependent_age),
-    tooltip="Age of Dependent",
-    x=183.6,
-    y=386.2,
-    width=232.4,
-    height=14,
-    borderWidth=0,
-    fillColor=white,
-    forceBorder=False,
-    fontSize=9,
-    fieldFlags="readOnly",
-)
+    pdf.drawString(
+        74,
+        405,
+        "Name of Dependent"
+    )
+
+    pdf.drawString(
+        74,
+        390,
+        "Age of Dependent"
+    )
+
+
+    # Stored Data
+    pdf.drawString(
+        200,
+        405,
+        dependent_name or ""
+    )
+
+    pdf.drawString(
+        200,
+        390,
+        str(dependent_age) if dependent_age is not None else ""
+    )
+
 
     pdf.save()
+
     return file_path
