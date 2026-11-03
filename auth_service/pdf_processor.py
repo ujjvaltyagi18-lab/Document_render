@@ -1,163 +1,65 @@
-from io import BytesIO
-from typing import Any, Optional
 
-from pypdf import PdfReader, PdfWriter
-from pypdf.generic import (
-    NameObject,
-    BooleanObject,
-)
+import os
+from pypdf import PdfReader
 
 
-class PDFDocumentExecutor:
+class PDFProcessor:
 
-
-    def set_need_appearances(
-        self,
-        writer: PdfWriter
-    ):
+    def read_pdf(self, pdf_path: str) -> dict:
         """
-        Enable PDF viewer to generate field appearances
+        Read PDF and extract text from all pages.
         """
 
-        if "/AcroForm" not in writer._root_object:
-
-            writer._root_object.update(
-                {
-                    NameObject("/AcroForm"):
-                    writer._add_object({})
-                }
+        if not os.path.exists(pdf_path):
+            raise FileNotFoundError(
+                f"PDF file not found: {pdf_path}"
             )
 
-        acro_form = writer._root_object["/AcroForm"]
+        reader = PdfReader(pdf_path)
 
-        acro_form.update(
-            {
-                NameObject("/NeedAppearances"):
-                BooleanObject(True)
+        if reader.is_encrypted:
+            raise ValueError("Encrypted PDF is not supported")
+
+        result = {
+            "total_pages": len(reader.pages),
+            "content": []
+        }
+
+        for index, page in enumerate(reader.pages):
+
+            text = page.extract_text() or ""
+
+            result["content"].append({
+                "page": index + 1,
+                "text": text
+            })
+
+        return result
+
+    def get_form_fields(self, pdf_path: str) -> dict:
+        """
+        Get PDF form field information.
+        """
+
+        if not os.path.exists(pdf_path):
+            raise FileNotFoundError(
+                f"PDF file not found: {pdf_path}"
+            )
+
+        reader = PdfReader(pdf_path)
+
+        if reader.is_encrypted:
+            raise ValueError("Encrypted PDF is not supported")
+
+        fields = reader.get_fields() or {}
+
+        return {
+            "total_fields": len(fields),
+            "fields": {
+                name: {
+                    "type": str(field.get("/FT", "")),
+                    "value": str(field.get("/V", ""))
+                }
+                for name, field in fields.items()
             }
-        )
-
-
-    def update_field(
-        self,
-        annotation,
-        field_name: str,
-        data: dict
-    ):
-
-        """
-        Update PDF field value
-        """
-
-        if field_name in data:
-
-            annotation.update(
-                {
-                    NameObject("/V"):
-                    str(data[field_name]),
-
-                    NameObject("/Ff"):
-                    1
-                }
-            )
-
-
-    def execute(
-        self,
-        input_path: str,
-        output_pdf_path: str,
-        data: Any
-    ) -> Optional[bytes]:
-
-
-        try:
-
-            pdf_reader = PdfReader(
-                input_path
-            )
-
-            pdf_writer = PdfWriter()
-
-
-            self.set_need_appearances(
-                pdf_writer
-            )
-
-
-            for page in pdf_reader.pages:
-
-
-                if "/Annots" in page:
-
-
-                    for annotation_ref in page["/Annots"]:
-
-
-                        annotation = (
-                            annotation_ref.get_object()
-                        )
-
-
-                        if "/T" in annotation:
-
-
-                            field_name = str(
-                                annotation["/T"]
-                            )
-
-
-                            print(
-                                "PDF Field:",
-                                field_name
-                            )
-
-
-                            self.update_field(
-                                annotation,
-                                field_name,
-                                data
-                            )
-
-
-                pdf_writer.add_page(
-                    page
-                )
-
-
-            # Save output PDF
-
-            with open(
-                output_pdf_path,
-                "wb"
-            ) as file:
-
-                pdf_writer.write(
-                    file
-                )
-
-
-            # Return PDF bytes
-
-            pdf_buffer = BytesIO()
-
-            pdf_writer.write(
-                pdf_buffer
-            )
-
-
-            print(
-                "Generated PDF saved:",
-                output_pdf_path
-            )
-
-
-            return pdf_buffer.getvalue()
-
-
-        except Exception as e:
-
-            print(
-                f"Failed to process PDF: {e}"
-            )
-
-            return None
+        }
